@@ -122,6 +122,10 @@ generate: generate-protoc generate-stringer generate-pql
 docker:
 	docker build -t "pilosa:$(VERSION)" .
 	@echo Created docker image: pilosa:$(VERSION)
+docker_rtss:
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -tags='$(BUILD_TAGS)' -ldflags $(LDFLAGS) $(FLAGS) ./cmd/pilosa
+	docker build -t "pilosa:$(VERSION)" .
+	@echo Created docker image: pilosa:$(VERSION)
 
 # Compile Pilosa inside Docker container
 docker-build:

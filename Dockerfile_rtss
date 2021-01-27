@@ -1,0 +1,16 @@
+FROM alpine:3.9.4
+
+LABEL maintainer "dev@pilosa.com"
+
+RUN apk add --no-cache curl jq
+
+COPY polosa /pilosa
+
+COPY LICENSE /LICENSE
+COPY NOTICE /NOTICE
+
+EXPOSE 10101
+VOLUME /data
+
+ENTRYPOINT ["/pilosa"]
+CMD ["server", "--data-dir", "/data", "--bind", "http://0.0.0.0:10101"]
