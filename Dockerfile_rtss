@@ -4,7 +4,8 @@ LABEL maintainer "dev@pilosa.com"
 
 RUN apk add --no-cache curl jq
 
-COPY polosa /pilosa
+
+COPY ./pilosa /pilosa
 
 COPY LICENSE /LICENSE
 COPY NOTICE /NOTICE

@@ -30,7 +30,7 @@ import (
 func main() {
 	//这里实现了远程获取pprof数据的接口
 	go func() {
-		log.Println(http.ListenAndServe("localhost:9024", nil))
+		log.Println(http.ListenAndServe("localhost:32222", nil))
 	}()
 
 	rootCmd := cmd.NewRootCommand(os.Stdin, os.Stdout, os.Stderr)
