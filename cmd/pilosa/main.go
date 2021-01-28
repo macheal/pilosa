@@ -19,12 +19,20 @@ package main
 
 import (
 	"fmt"
+	"log"
+	"net/http"
 	"os"
 
 	"github.com/pilosa/pilosa/cmd"
+	_ "net/http/pprof"
 )
 
 func main() {
+	//这里实现了远程获取pprof数据的接口
+	go func() {
+		log.Println(http.ListenAndServe("localhost:32222", nil))
+	}()
+
 	rootCmd := cmd.NewRootCommand(os.Stdin, os.Stdout, os.Stderr)
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Println(err)

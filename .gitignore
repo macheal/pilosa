@@ -4,3 +4,7 @@ vendor
 .protoc-gen-gofast
 .DS_Store
 build
+bin/
+bin2/
+.idea/
+pilosa
