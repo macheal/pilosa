@@ -358,12 +358,12 @@ func timeOfView(v string, adj bool) (time.Time, error) {
 		}
 		return t, nil
 	case 12: // minute
-		t, err := time.Parse(layout[:12], timePart)
+		t, err := time.Parse(layout[:12], timePart[:11]+"0")
 		if err != nil {
 			return time.Time{}, err
 		}
 		if adj {
-			t = t.Add(time.Minute)
+			t = t.Add(10 * time.Minute)
 		}
 		return t, nil
 	}
