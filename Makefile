@@ -128,7 +128,7 @@ docker_rtss:
 	cp LICENSE bin/
 	cp NOTICE bin/
 	cd bin/
-	docker build -t "pilosa:$(VERSION)" ./bin/ -f Dockerfile_rtss
+	docker build -t "hub.smartsteps.com/pilosa/macheal/pilosa:$(VERSION)" ./bin/ -f Dockerfile_rtss
 	@echo Created docker image: pilosa:$(VERSION)
 
 # Compile Pilosa inside Docker container

@@ -1156,7 +1156,7 @@ func (e *executor) executeGroupBy(ctx context.Context, index string, c *pql.Call
 // FieldRow is used to distinguish rows in a group by result.
 type FieldRow struct {
 	Field  string `json:"field"`
-	RowID  uint64 `json:"rowID"`
+	RowID  uint64 `json:"rowID,string"`
 	RowKey string `json:"rowKey,omitempty"`
 }
 
