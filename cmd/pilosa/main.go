@@ -37,7 +37,7 @@ func main() {
 	go func() {
 		var now time.Time
 		for {
-			time.Sleep(3 * time.Minute)
+			time.Sleep(30 * time.Minute)
 
 			now = time.Now()
 			debug.FreeOSMemory()
