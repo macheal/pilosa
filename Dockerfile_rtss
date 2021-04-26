@@ -1,4 +1,4 @@
-FROM alpine:3.9.4
+FROM hub.smartsteps.com/public/rt_apline
 
 LABEL maintainer "dev@pilosa.com"
 

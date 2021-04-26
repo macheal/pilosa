@@ -131,6 +131,8 @@ docker_rtss:
 	docker build -t "hub.smartsteps.com/pilosa/macheal/pilosa:$(VERSION)" ./bin/ -f Dockerfile_rtss
 	@echo Created docker image: pilosa:$(VERSION)
 
+    #docker pull hub.smartsteps.com/pilosa/macheal/pilosa
+
 # Compile Pilosa inside Docker container
 docker-build:
 	docker run --rm -v $(PWD):/go/src/$(CLONE_URL) -w /go/src/$(CLONE_URL) -e GOOS=$(GOOS) -e GOARCH=$(GOARCH) golang:$(GO_VERSION) go build -tags='$(BUILD_TAGS)' -ldflags $(LDFLAGS) $(FLAGS) $(CLONE_URL)/cmd/pilosa
