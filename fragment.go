@@ -2345,9 +2345,9 @@ func (f *fragment) snapshot() error {
 // unprotectedWriteToFragment writes the fragment f with bm as the data. It is unprotected, and
 // f.mu must be locked when calling it.
 func unprotectedWriteToFragment(f *fragment, bm *roaring.Bitmap) (n int64, err error) { // nolint: interfacer
-	completeMessage := fmt.Sprintf("fragment: snapshot complete %s/%s/%s/%d", f.index, f.field, f.view, f.shard)
-	start := time.Now()
-	defer track(start, completeMessage, f.stats, f.Logger)
+	//completeMessage := fmt.Sprintf("fragment: snapshot complete %s/%s/%s/%d", f.index, f.field, f.view, f.shard)
+	//start := time.Now()
+	//defer track(start, completeMessage, f.stats, f.Logger)
 
 	// Create a temporary file to snapshot to.
 	snapshotPath := f.path + snapshotExt
