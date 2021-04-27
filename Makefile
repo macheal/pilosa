@@ -123,7 +123,8 @@ docker:
 	docker build -t "pilosa:$(VERSION)" .
 	@echo Created docker image: pilosa:$(VERSION)
 docker_rtss:
-	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -tags='$(BUILD_TAGS)' -ldflags $(LDFLAGS) $(FLAGS) -o bin/ ./cmd/pilosa
+	# go build -tags='$(BUILD_TAGS)' -ldflags $(LDFLAGS) $(FLAGS) -o bin/ ./cmd/pilosa
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o bin/ ./cmd/pilosa
 	cp Dockerfile_rtss bin/
 	cp LICENSE bin/
 	cp NOTICE bin/
