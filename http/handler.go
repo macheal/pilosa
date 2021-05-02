@@ -314,6 +314,7 @@ func newRouter(handler *Handler) *mux.Router {
 	router.HandleFunc("/internal/nodes", handler.handleGetNodes).Methods("GET").Name("GetNodes")
 	router.HandleFunc("/internal/shards/max", handler.handleGetShardsMax).Methods("GET").Name("GetShardsMax") // TODO: deprecate, but it's being used by the client
 	router.HandleFunc("/internal/translate/data", handler.handleGetTranslateData).Methods("GET").Name("GetTranslateData")
+	router.HandleFunc("/internal/memory/free", handler.handleGetFreeOSMemory).Methods("GET").Name("FreeOSMemory")
 	router.HandleFunc("/internal/translate/keys", handler.handlePostTranslateKeys).Methods("POST").Name("PostTranslateKeys")
 
 	router.Use(handler.queryArgValidator)
@@ -1522,6 +1523,20 @@ type defaultClusterMessageResponse struct{}
 // translateStoreBufferSize is the buffer size used for streaming data.
 const translateStoreBufferSize = 1 << 16 // 64k
 
+func (h *Handler) handleGetFreeOSMemory(w http.ResponseWriter, r *http.Request) {
+	now := time.Now()
+	debug.FreeOSMemory()
+	cost := time.Now().Sub(now)
+	w.WriteHeader(http.StatusOK)
+	type FreeOSMemory struct {
+		Cost time.Duration
+	}
+	if err := json.NewEncoder(w).Encode(FreeOSMemory{Cost: cost}); err != nil {
+		h.logger.Printf("write response error: %s", err)
+	}
+	return
+
+}
 func (h *Handler) handleGetTranslateData(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
 	offset, _ := strconv.ParseInt(q.Get("offset"), 10, 64)

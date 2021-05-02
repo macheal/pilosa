@@ -19,31 +19,21 @@ package main
 
 import (
 	"fmt"
-	"log"
-	"net/http"
-	"os"
-	"runtime/debug"
-	"time"
-
 	"github.com/pilosa/pilosa/cmd"
-	_ "net/http/pprof"
+	"os"
 )
 
 func main() {
-	//这里实现了远程获取pprof数据的接口
-	go func() {
-		log.Println(http.ListenAndServe("localhost:32222", nil))
-	}()
-	go func() {
-		var now time.Time
-		for {
-			time.Sleep(30 * time.Minute)
-
-			now = time.Now()
-			debug.FreeOSMemory()
-			log.Println("goFreeOSMemory", "call FreeOSMemory cost ", time.Now().Sub(now))
-		}
-	}()
+	//go func() {
+	//	var now time.Time
+	//	for {
+	//		time.Sleep(30 * time.Minute)
+	//
+	//		now = time.Now()
+	//		debug.FreeOSMemory()
+	//		log.Println("goFreeOSMemory", "call FreeOSMemory cost ", time.Now().Sub(now))
+	//	}
+	//}()
 
 	rootCmd := cmd.NewRootCommand(os.Stdin, os.Stdout, os.Stderr)
 	if err := rootCmd.Execute(); err != nil {
