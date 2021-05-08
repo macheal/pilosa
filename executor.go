@@ -1073,6 +1073,17 @@ func (e *executor) executeGroupBy(ctx context.Context, index string, c *pql.Call
 	if len(c.Children) == 0 {
 		return nil, errors.New("need at least one child call")
 	}
+	if len(c.Children) > 2 {
+		rowsCount := 0
+		for _, child := range c.Children {
+			if child.Name == "Rows" {
+				rowsCount++
+			}
+		}
+		if rowsCount > 2 {
+			return nil, errors.New("Rows at most two.")
+		}
+	}
 	limit := int(^uint(0) >> 1)
 	if lim, hasLimit, err := c.UintArg("limit"); err != nil {
 		return nil, err
