@@ -3184,6 +3184,7 @@ func (gbi *groupByIterator) nextAtIdx(i int) {
 			gbi.done = true
 			return
 		}
+		fmt.Println(gbi.rowIters[i].f.field, nr, rowID, wrapped)
 		if wrapped && i != 0 {
 			gbi.nextAtIdx(i - 1)
 		}
@@ -3216,6 +3217,7 @@ func (gbi *groupByIterator) Next() (ret GroupCount, done bool) {
 			ret.Count = gbi.rows[len(gbi.rows)-1].row.intersectionCount(gbi.rows[len(gbi.rows)-2].row)
 		}
 		if ret.Count == 0 {
+			fmt.Println(len(gbi.rows) - 1)
 			gbi.nextAtIdx(len(gbi.rows) - 1)
 			continue
 		}

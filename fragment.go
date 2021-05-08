@@ -2791,8 +2791,10 @@ func (ri *rowIterator) Seek(rowID uint64) {
 }
 
 func (ri *rowIterator) Next() (r *Row, rowID uint64, wrapped bool) {
+	//fmt.Printf("field:%s,%d/%d wrap:%+v \r\n",ri.f.field,ri.cur,len(ri.rowIDs),ri.wrap)
 	if ri.cur >= len(ri.rowIDs) {
 		if !ri.wrap || len(ri.rowIDs) == 0 {
+			//fmt.Println("over.")
 			return nil, 0, true
 		}
 		ri.Seek(0)
