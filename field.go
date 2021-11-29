@@ -845,8 +845,8 @@ func (f *Field) createViewIfNotExists(name string) (*view, error) {
 // createViewIfNotExistsBase returns the named view, creating it if necessary.
 // The returned bool indicates whether the view was created or not.
 func (f *Field) createViewIfNotExistsBase(name string) (*view, bool, error) {
-	f.mu.Lock()
-	defer f.mu.Unlock()
+	//f.mu.Lock()
+	//defer f.mu.Unlock()
 
 	if view := f.view(name); view != nil {
 		return view, false, nil
