@@ -19,12 +19,22 @@ package main
 
 import (
 	"fmt"
-	"os"
-
 	"github.com/pilosa/pilosa/cmd"
+	"os"
 )
 
 func main() {
+	//go func() {
+	//	var now time.Time
+	//	for {
+	//		time.Sleep(30 * time.Minute)
+	//
+	//		now = time.Now()
+	//		debug.FreeOSMemory()
+	//		log.Println("goFreeOSMemory", "call FreeOSMemory cost ", time.Now().Sub(now))
+	//	}
+	//}()
+
 	rootCmd := cmd.NewRootCommand(os.Stdin, os.Stdout, os.Stderr)
 	if err := rootCmd.Execute(); err != nil {
 		fmt.Println(err)

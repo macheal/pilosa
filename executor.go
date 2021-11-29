@@ -1073,6 +1073,17 @@ func (e *executor) executeGroupBy(ctx context.Context, index string, c *pql.Call
 	if len(c.Children) == 0 {
 		return nil, errors.New("need at least one child call")
 	}
+	if len(c.Children) > 2 {
+		rowsCount := 0
+		for _, child := range c.Children {
+			if child.Name == "Rows" {
+				rowsCount++
+			}
+		}
+		if rowsCount > 2 {
+			return nil, errors.New("Rows at most two.")
+		}
+	}
 	limit := int(^uint(0) >> 1)
 	if lim, hasLimit, err := c.UintArg("limit"); err != nil {
 		return nil, err
@@ -1156,7 +1167,7 @@ func (e *executor) executeGroupBy(ctx context.Context, index string, c *pql.Call
 // FieldRow is used to distinguish rows in a group by result.
 type FieldRow struct {
 	Field  string `json:"field"`
-	RowID  uint64 `json:"rowID"`
+	RowID  uint64 `json:"rowID,string"`
 	RowKey string `json:"rowKey,omitempty"`
 }
 
@@ -3184,6 +3195,7 @@ func (gbi *groupByIterator) nextAtIdx(i int) {
 			gbi.done = true
 			return
 		}
+		fmt.Println(gbi.rowIters[i].f.field, nr, rowID, wrapped)
 		if wrapped && i != 0 {
 			gbi.nextAtIdx(i - 1)
 		}
@@ -3216,6 +3228,7 @@ func (gbi *groupByIterator) Next() (ret GroupCount, done bool) {
 			ret.Count = gbi.rows[len(gbi.rows)-1].row.intersectionCount(gbi.rows[len(gbi.rows)-2].row)
 		}
 		if ret.Count == 0 {
+			fmt.Println(len(gbi.rows) - 1)
 			gbi.nextAtIdx(len(gbi.rows) - 1)
 			continue
 		}

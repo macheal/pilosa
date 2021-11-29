@@ -1,0 +1,17 @@
+FROM hub.smartsteps.com/public/rt_apline
+
+LABEL maintainer "dev@pilosa.com"
+
+RUN apk add --no-cache curl jq
+
+
+COPY ./pilosa /pilosa
+
+COPY LICENSE /LICENSE
+COPY NOTICE /NOTICE
+
+EXPOSE 10101
+VOLUME /data
+
+ENTRYPOINT ["/pilosa"]
+CMD ["server", "--data-dir", "/data", "--bind", "http://0.0.0.0:10101"]

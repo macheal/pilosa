@@ -2345,9 +2345,9 @@ func (f *fragment) snapshot() error {
 // unprotectedWriteToFragment writes the fragment f with bm as the data. It is unprotected, and
 // f.mu must be locked when calling it.
 func unprotectedWriteToFragment(f *fragment, bm *roaring.Bitmap) (n int64, err error) { // nolint: interfacer
-	completeMessage := fmt.Sprintf("fragment: snapshot complete %s/%s/%s/%d", f.index, f.field, f.view, f.shard)
-	start := time.Now()
-	defer track(start, completeMessage, f.stats, f.Logger)
+	//completeMessage := fmt.Sprintf("fragment: snapshot complete %s/%s/%s/%d", f.index, f.field, f.view, f.shard)
+	//start := time.Now()
+	//defer track(start, completeMessage, f.stats, f.Logger)
 
 	// Create a temporary file to snapshot to.
 	snapshotPath := f.path + snapshotExt
@@ -2791,8 +2791,10 @@ func (ri *rowIterator) Seek(rowID uint64) {
 }
 
 func (ri *rowIterator) Next() (r *Row, rowID uint64, wrapped bool) {
+	//fmt.Printf("field:%s,%d/%d wrap:%+v \r\n",ri.f.field,ri.cur,len(ri.rowIDs),ri.wrap)
 	if ri.cur >= len(ri.rowIDs) {
 		if !ri.wrap || len(ri.rowIDs) == 0 {
+			//fmt.Println("over.")
 			return nil, 0, true
 		}
 		ri.Seek(0)

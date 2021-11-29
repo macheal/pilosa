@@ -284,8 +284,10 @@ func newRouter(handler *Handler) *mux.Router {
 	router.HandleFunc("/index", handler.handleGetIndexes).Methods("GET").Name("GetIndexes")
 	router.HandleFunc("/index/{index}", handler.handleGetIndex).Methods("GET").Name("GetIndex")
 	router.HandleFunc("/index/{index}", handler.handlePostIndex).Methods("POST").Name("PostIndex")
-	router.HandleFunc("/index/{index}", handler.handleDeleteIndex).Methods("DELETE").Name("DeleteIndex")
+	//rtss 移除DeleteIndex 功能
+	//router.HandleFunc("/index/{index}", handler.handleDeleteIndex).Methods("DELETE").Name("DeleteIndex")
 	//router.HandleFunc("/index/{index}/field", handler.handleGetFields).Methods("GET") // Not implemented.
+	router.HandleFunc("/index/{index}/field/{field}", handler.handleGetFields).Methods("GET").Name("GetField")
 	router.HandleFunc("/index/{index}/field/{field}", handler.handlePostField).Methods("POST").Name("PostField")
 	router.HandleFunc("/index/{index}/field/{field}", handler.handleDeleteField).Methods("DELETE").Name("DeleteField")
 	router.HandleFunc("/index/{index}/field/{field}/import", handler.handlePostImport).Methods("POST").Name("PostImport")
@@ -311,6 +313,7 @@ func newRouter(handler *Handler) *mux.Router {
 	router.HandleFunc("/internal/nodes", handler.handleGetNodes).Methods("GET").Name("GetNodes")
 	router.HandleFunc("/internal/shards/max", handler.handleGetShardsMax).Methods("GET").Name("GetShardsMax") // TODO: deprecate, but it's being used by the client
 	router.HandleFunc("/internal/translate/data", handler.handleGetTranslateData).Methods("GET").Name("GetTranslateData")
+	router.HandleFunc("/internal/memory/free", handler.handleGetFreeOSMemory).Methods("GET").Name("FreeOSMemory")
 	router.HandleFunc("/internal/translate/keys", handler.handlePostTranslateKeys).Methods("POST").Name("PostTranslateKeys")
 
 	router.Use(handler.queryArgValidator)
@@ -574,6 +577,27 @@ func (h *Handler) handleGetIndex(w http.ResponseWriter, r *http.Request) {
 				h.logger.Printf("write response error: %s", err)
 			}
 			return
+		}
+	}
+	http.Error(w, fmt.Sprintf("Index %s Not Found", indexName), http.StatusNotFound)
+}
+func (h *Handler) handleGetFields(w http.ResponseWriter, r *http.Request) {
+	if !validHeaderAcceptJSON(r.Header) {
+		http.Error(w, "JSON only acceptable response", http.StatusNotAcceptable)
+		return
+	}
+	indexName := mux.Vars(r)["index"]
+	fieldName := mux.Vars(r)["field"]
+	for _, idx := range h.api.Schema(r.Context()) {
+		if idx.Name == indexName {
+			for _, field := range idx.Fields {
+				if fieldName == field.Name {
+					if err := json.NewEncoder(w).Encode(field); err != nil {
+						h.logger.Printf("write response error: %s", err)
+					}
+					return
+				}
+			}
 		}
 	}
 	http.Error(w, fmt.Sprintf("Index %s Not Found", indexName), http.StatusNotFound)
@@ -1498,6 +1522,20 @@ type defaultClusterMessageResponse struct{}
 // translateStoreBufferSize is the buffer size used for streaming data.
 const translateStoreBufferSize = 1 << 16 // 64k
 
+func (h *Handler) handleGetFreeOSMemory(w http.ResponseWriter, r *http.Request) {
+	now := time.Now()
+	debug.FreeOSMemory()
+	cost := time.Now().Sub(now)
+	w.WriteHeader(http.StatusOK)
+	type FreeOSMemory struct {
+		Cost time.Duration
+	}
+	if err := json.NewEncoder(w).Encode(FreeOSMemory{Cost: cost}); err != nil {
+		h.logger.Printf("write response error: %s", err)
+	}
+	return
+
+}
 func (h *Handler) handleGetTranslateData(w http.ResponseWriter, r *http.Request) {
 	q := r.URL.Query()
 	offset, _ := strconv.ParseInt(q.Get("offset"), 10, 64)
