@@ -20,6 +20,7 @@ require (
 	github.com/hashicorp/memberlist v0.1.3
 	github.com/inconshreveable/mousetrap v1.0.0 // indirect
 	github.com/opentracing/opentracing-go v1.1.0
+	github.com/patrickmn/go-cache v2.1.0+incompatible // indirect
 	github.com/pelletier/go-toml v1.2.0
 	github.com/pkg/errors v0.8.1
 	github.com/prometheus/client_golang v0.9.3

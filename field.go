@@ -19,6 +19,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"golang.org/x/sync/singleflight"
 	"io/ioutil"
 	"os"
 	"path/filepath"
@@ -28,6 +29,7 @@ import (
 	"time"
 
 	"github.com/gogo/protobuf/proto"
+	go_cache "github.com/patrickmn/go-cache"
 	"github.com/pilosa/pilosa/internal"
 	"github.com/pilosa/pilosa/logger"
 	"github.com/pilosa/pilosa/pql"
@@ -69,6 +71,9 @@ type Field struct {
 	name  string
 
 	_viewMap map[string]*view
+
+	_view_cache *go_cache.Cache
+	group       singleflight.Group
 
 	// Row attribute storage and cache
 	rowAttrStore AttrStore
@@ -232,6 +237,9 @@ func newField(path, index, name string, opts FieldOption) (*Field, error) {
 		logger: logger.NopLogger,
 	}
 	f.newViews()
+	//f._view_cache = go_cache.New(10*time.Second, 5*time.Second)
+	f._view_cache = go_cache.New(30*time.Minute, 5*time.Minute)
+	f._view_cache.OnEvicted(f.OnEvicted)
 	return f, nil
 }
 
@@ -785,17 +793,52 @@ func (f *Field) viewPath(name string) string {
 func (f *Field) view(name string) *view {
 	f.mu.RLock()
 	defer f.mu.RUnlock()
+	_, found := f._view_cache.Get("view")
+	if !found {
+		err := f.openViews()
+		if err != nil {
+			panic(err)
+		}
+	} else {
+		f._view_cache.SetDefault("view", 0)
+	}
 	return f.unprotectedView(name)
 }
 
 func (f *Field) unprotectedView(name string) *view { return f._viewMap[name] }
+func (f *Field) OnEvicted(key string, i interface{}) {
+	f.mu.RLock()
+	defer f.mu.RUnlock()
+	f.logger.Debugf("---debug---field:%s.views closing.", f.Name())
+	for _, view := range f._viewMap {
+		err := view.close()
+		if err != nil {
+			panic(err)
+		}
+	}
+	f.logger.Debugf("---debug---field:%s.views closed.", f.Name())
+}
 func (f *Field) newViews() {
 	f._viewMap = make(map[string]*view)
 }
 func (f *Field) addView(name string, v *view) {
+	f._view_cache.SetDefault("view", 0)
+	f.logger.Debugf("---debug---field:%s .view:%s .loaded", f.Name(), name)
 	f._viewMap[name] = v
 }
 func (f *Field) viewMap() map[string]*view {
+	_, found := f._view_cache.Get("view")
+	if !found {
+		_, err, _ := f.group.Do("view", func() (interface{}, error) {
+			err := f.openViews()
+			return nil, err
+		})
+		if err != nil {
+			panic(err)
+		}
+	} else {
+		f._view_cache.SetDefault("view", 0)
+	}
 	return f._viewMap
 }
 
@@ -845,8 +888,8 @@ func (f *Field) createViewIfNotExists(name string) (*view, error) {
 // createViewIfNotExistsBase returns the named view, creating it if necessary.
 // The returned bool indicates whether the view was created or not.
 func (f *Field) createViewIfNotExistsBase(name string) (*view, bool, error) {
-	f.mu.Lock()
-	defer f.mu.Unlock()
+	//f.mu.Lock()
+	//defer f.mu.Unlock()
 
 	if view := f.view(name); view != nil {
 		return view, false, nil
