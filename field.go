@@ -68,7 +68,7 @@ type Field struct {
 	index string
 	name  string
 
-	viewMap map[string]*view
+	_viewMap map[string]*view
 
 	// Row attribute storage and cache
 	rowAttrStore AttrStore
@@ -220,8 +220,6 @@ func newField(path, index, name string, opts FieldOption) (*Field, error) {
 		index: index,
 		name:  name,
 
-		viewMap: make(map[string]*view),
-
 		rowAttrStore: nopStore,
 
 		broadcaster: NopBroadcaster,
@@ -233,6 +231,7 @@ func newField(path, index, name string, opts FieldOption) (*Field, error) {
 
 		logger: logger.NopLogger,
 	}
+	f.newViews()
 	return f, nil
 }
 
@@ -254,7 +253,7 @@ func (f *Field) AvailableShards() *roaring.Bitmap {
 	defer f.mu.RUnlock()
 
 	b := f.remoteAvailableShards.Clone()
-	for _, view := range f.viewMap {
+	for _, view := range f.viewMap() {
 		b = b.Union(view.availableShards())
 	}
 	return b
@@ -491,7 +490,7 @@ func (f *Field) openViews() error {
 				view.rowAttrStore = f.rowAttrStore
 				f.logger.Debugf("add index/field/view to field.viewMap: %s/%s/%s", f.index, f.name, view.name)
 				mu.Lock()
-				f.viewMap[view.name] = view
+				f.addView(view.name, view)
 				mu.Unlock()
 				return nil
 			})
@@ -662,12 +661,12 @@ func (f *Field) Close() error {
 	}
 
 	// Close all views.
-	for _, view := range f.viewMap {
+	for _, view := range f.viewMap() {
 		if err := view.close(); err != nil {
 			return err
 		}
 	}
-	f.viewMap = make(map[string]*view)
+	f.newViews()
 
 	return nil
 }
@@ -789,15 +788,24 @@ func (f *Field) view(name string) *view {
 	return f.unprotectedView(name)
 }
 
-func (f *Field) unprotectedView(name string) *view { return f.viewMap[name] }
+func (f *Field) unprotectedView(name string) *view { return f._viewMap[name] }
+func (f *Field) newViews() {
+	f._viewMap = make(map[string]*view)
+}
+func (f *Field) addView(name string, v *view) {
+	f._viewMap[name] = v
+}
+func (f *Field) viewMap() map[string]*view {
+	return f._viewMap
+}
 
 // views returns a list of all views in the field.
 func (f *Field) views() []*view {
 	f.mu.RLock()
 	defer f.mu.RUnlock()
 
-	other := make([]*view, 0, len(f.viewMap))
-	for _, view := range f.viewMap {
+	other := make([]*view, 0, len(f.viewMap()))
+	for _, view := range f.viewMap() {
 		other = append(other, view)
 	}
 	return other
@@ -840,7 +848,7 @@ func (f *Field) createViewIfNotExistsBase(name string) (*view, bool, error) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 
-	if view := f.viewMap[name]; view != nil {
+	if view := f.view(name); view != nil {
 		return view, false, nil
 	}
 	view := f.newView(f.viewPath(name), name)
@@ -849,8 +857,7 @@ func (f *Field) createViewIfNotExistsBase(name string) (*view, bool, error) {
 		return nil, false, errors.Wrap(err, "opening view")
 	}
 	view.rowAttrStore = f.rowAttrStore
-	f.viewMap[view.name] = view
-
+	f.addView(view.name, view)
 	return view, true, nil
 }
 
@@ -866,7 +873,7 @@ func (f *Field) newView(path, name string) *view {
 
 // deleteView removes the view from the field.
 func (f *Field) deleteView(name string) error {
-	view := f.viewMap[name]
+	view := f.view(name)
 	if view == nil {
 		return ErrInvalidView
 	}
@@ -881,7 +888,7 @@ func (f *Field) deleteView(name string) error {
 		return errors.Wrap(err, "deleting directory")
 	}
 
-	delete(f.viewMap, name)
+	delete(f._viewMap, name)
 
 	return nil
 }
@@ -947,7 +954,7 @@ func (f *Field) ClearBit(rowID, colID uint64) (changed bool, err error) {
 	viewName := viewStandard
 
 	// Retrieve view. Exit if it doesn't exist.
-	view, present := f.viewMap[viewName]
+	view, present := f.viewMap()[viewName]
 	if !present {
 		return changed, errors.Wrap(err, "clearing missing view")
 
@@ -959,7 +966,7 @@ func (f *Field) ClearBit(rowID, colID uint64) (changed bool, err error) {
 	} else if v {
 		changed = v
 	}
-	if len(f.viewMap) == 1 { // assuming no time views
+	if len(f.viewMap()) == 1 { // assuming no time views
 		return changed, nil
 	}
 	lastViewNameSize := 0
@@ -999,11 +1006,11 @@ func groupCompare(a, b string, offset int) (lt, eq bool) {
 }
 
 func (f *Field) allTimeViewsSortedByQuantum() (me []*view) {
-	me = make([]*view, len(f.viewMap))
+	me = make([]*view, len(f.viewMap()))
 	prefix := viewStandard + "_"
 	offset := len(viewStandard) + 1
 	i := 0
-	for _, v := range f.viewMap {
+	for _, v := range f.viewMap() {
 		if len(v.name) > offset && strings.Compare(v.name[:offset], prefix) == 0 { // skip non-time views
 			me[i] = v
 			i++
