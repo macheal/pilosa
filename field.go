@@ -237,9 +237,8 @@ func newField(path, index, name string, opts FieldOption) (*Field, error) {
 		logger: logger.NopLogger,
 	}
 	f.newViews()
-	//f._view_cache = go_cache.New(10*time.Second, 5*time.Second)
-	f._view_cache = go_cache.New(30*time.Minute, 5*time.Minute)
-	f._view_cache.OnEvicted(f.OnEvicted)
+	f._view_cache = go_cache.New(0, 0)
+
 	return f, nil
 }
 
@@ -261,7 +260,7 @@ func (f *Field) AvailableShards() *roaring.Bitmap {
 	defer f.mu.RUnlock()
 
 	b := f.remoteAvailableShards.Clone()
-	for _, view := range f.viewMap() {
+	for _, view := range f._viewMap {
 		b = b.Union(view.availableShards())
 	}
 	return b
@@ -653,6 +652,12 @@ func (f *Field) applyOptions(opt FieldOptions) error {
 		f.options.Keys = false
 	default:
 		return errors.New("invalid field type")
+	}
+	if f.options.CacheType == CacheTypeNone {
+		f.logger.Debugf("---debug---,field:%s,set ttl", f.Name())
+		f._view_cache = go_cache.New(10*time.Second, 5*time.Second)
+		//f._view_cache = go_cache.New(30*time.Minute, 5*time.Minute)
+		f._view_cache.OnEvicted(f.OnEvicted)
 	}
 
 	return nil

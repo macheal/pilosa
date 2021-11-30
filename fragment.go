@@ -331,11 +331,11 @@ func (f *fragment) openStorage(unmarshalData bool) error {
 	if mustClose {
 		defer f.safeClose()
 	}
-
-	// Lock the underlying file.
-	if err := syscall.Flock(int(f.file.Fd()), syscall.LOCK_EX|syscall.LOCK_NB); err != nil {
-		return fmt.Errorf("flock: %s", err)
-	}
+	//todo wgy
+	//// Lock the underlying file.
+	//if err := syscall.Flock(int(f.file.Fd()), syscall.LOCK_EX|syscall.LOCK_NB); err != nil {
+	//	return fmt.Errorf("flock: %s", err)
+	//}
 
 	// data is the data we would unmarshal from, if we're unmarshalling; it might
 	// be obtained by calling ReadAll on a file.
