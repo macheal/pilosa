@@ -29,7 +29,6 @@ import (
 	"time"
 
 	"github.com/gogo/protobuf/proto"
-	go_cache "github.com/patrickmn/go-cache"
 	"github.com/pilosa/pilosa/internal"
 	"github.com/pilosa/pilosa/logger"
 	"github.com/pilosa/pilosa/pql"
@@ -72,8 +71,12 @@ type Field struct {
 
 	_viewMap map[string]*view
 
-	_view_cache *go_cache.Cache
-	group       singleflight.Group
+	ticker  *time.Ticker
+	ttl     time.Duration
+	closing chan struct{}
+	isOpen  bool
+	//_view_cache *go_cache.Cache
+	group singleflight.Group
 
 	// Row attribute storage and cache
 	rowAttrStore AttrStore
@@ -237,7 +240,9 @@ func newField(path, index, name string, opts FieldOption) (*Field, error) {
 		logger: logger.NopLogger,
 	}
 	f.newViews()
-	f._view_cache = go_cache.New(0, 0)
+	f.closing = make(chan struct{})
+	f.ttl = 10 * time.Second
+	//f.ttl = 30*time.Minute
 
 	return f, nil
 }
@@ -653,11 +658,20 @@ func (f *Field) applyOptions(opt FieldOptions) error {
 	default:
 		return errors.New("invalid field type")
 	}
-	if f.options.CacheType == CacheTypeNone {
+	if f.options.CacheType == CacheTypeNone && f.Name() != "_exists" {
 		f.logger.Debugf("---debug---,field:%s,set ttl", f.Name())
-		f._view_cache = go_cache.New(10*time.Second, 5*time.Second)
-		//f._view_cache = go_cache.New(30*time.Minute, 5*time.Minute)
-		f._view_cache.OnEvicted(f.OnEvicted)
+		f.ticker = time.NewTicker(f.ttl)
+		go func() {
+			defer f.ticker.Stop()
+			for {
+				select {
+				case <-f.closing:
+					return
+				case <-f.ticker.C:
+					f.OnEvicted()
+				}
+			}
+		}()
 	}
 
 	return nil
@@ -667,6 +681,7 @@ func (f *Field) applyOptions(opt FieldOptions) error {
 func (f *Field) Close() error {
 	f.mu.Lock()
 	defer f.mu.Unlock()
+	close(f.closing)
 
 	// Close the attribute store.
 	if f.rowAttrStore != nil {
@@ -798,22 +813,34 @@ func (f *Field) viewPath(name string) string {
 func (f *Field) view(name string) *view {
 	f.mu.RLock()
 	defer f.mu.RUnlock()
-	_, found := f._view_cache.Get("view")
-	if !found {
-		err := f.openViews()
-		if err != nil {
-			panic(err)
+	if f.ticker != nil {
+		if f.isOpen {
+			f.ticker.Reset(f.ttl)
+		} else {
+			_, err, _ := f.group.Do("view", func() (interface{}, error) {
+				if !f.isOpen {
+					f.logger.Debugf("view()openViews")
+					err := f.openViews()
+					f.isOpen = true
+					return nil, err
+				}
+				return nil, nil
+			})
+			if err != nil {
+				panic(err)
+			}
 		}
-	} else {
-		f._view_cache.SetDefault("view", 0)
 	}
 	return f.unprotectedView(name)
 }
 
 func (f *Field) unprotectedView(name string) *view { return f._viewMap[name] }
-func (f *Field) OnEvicted(key string, i interface{}) {
+func (f *Field) OnEvicted() {
 	f.mu.RLock()
 	defer f.mu.RUnlock()
+	if !f.isOpen {
+		return
+	}
 	f.logger.Debugf("---debug---field:%s.views closing.", f.Name())
 	for _, view := range f._viewMap {
 		err := view.close()
@@ -821,28 +848,35 @@ func (f *Field) OnEvicted(key string, i interface{}) {
 			panic(err)
 		}
 	}
+	f.isOpen = false
 	f.logger.Debugf("---debug---field:%s.views closed.", f.Name())
 }
 func (f *Field) newViews() {
 	f._viewMap = make(map[string]*view)
 }
 func (f *Field) addView(name string, v *view) {
-	f._view_cache.SetDefault("view", 0)
+	f.isOpen = true
 	f.logger.Debugf("---debug---field:%s .view:%s .loaded", f.Name(), name)
 	f._viewMap[name] = v
 }
 func (f *Field) viewMap() map[string]*view {
-	_, found := f._view_cache.Get("view")
-	if !found {
-		_, err, _ := f.group.Do("view", func() (interface{}, error) {
-			err := f.openViews()
-			return nil, err
-		})
-		if err != nil {
-			panic(err)
+	if f.ticker != nil {
+		if f.isOpen {
+			f.ticker.Reset(f.ttl)
+		} else {
+			_, err, _ := f.group.Do("view", func() (interface{}, error) {
+				if !f.isOpen {
+					f.logger.Debugf("viewMap()openViews")
+					err := f.openViews()
+					f.isOpen = true
+					return nil, err
+				}
+				return nil, nil
+			})
+			if err != nil {
+				panic(err)
+			}
 		}
-	} else {
-		f._view_cache.SetDefault("view", 0)
 	}
 	return f._viewMap
 }
