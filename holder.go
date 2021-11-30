@@ -520,6 +520,9 @@ func (h *Holder) monitorCacheFlush() {
 func (h *Holder) flushCaches() {
 	for _, index := range h.Indexes() {
 		for _, field := range index.Fields() {
+			if field.Options().CacheType == CacheTypeNone {
+				continue
+			}
 			for _, view := range field.views() {
 				for _, fragment := range view.allFragments() {
 					select {

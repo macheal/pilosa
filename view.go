@@ -53,7 +53,8 @@ type view struct {
 	cacheSize uint32
 
 	// Fragments by shard.
-	fragments map[uint64]*fragment
+	fragments        map[uint64]*fragment
+	_availableShards *roaring.Bitmap
 
 	broadcaster   broadcaster
 	stats         stats.StatsClient
@@ -74,7 +75,8 @@ func newView(path, index, field, name string, fieldOptions FieldOptions) *view {
 		cacheType: fieldOptions.CacheType,
 		cacheSize: fieldOptions.CacheSize,
 
-		fragments: make(map[uint64]*fragment),
+		fragments:        make(map[uint64]*fragment),
+		_availableShards: roaring.NewFileBitmap(),
 
 		broadcaster: NopBroadcaster,
 		stats:       stats.NopStatsClient,
@@ -166,6 +168,7 @@ func (v *view) openFragments() error {
 				v.logger.Debugf("add index/field/view/fragment to view.fragments: %s/%s/%s/%d", v.index, v.field, v.name, shard)
 				mu.Lock()
 				v.fragments[frag.shard] = frag
+				v._availableShards.Add(frag.shard)
 				mu.Unlock()
 				return nil
 			})
@@ -218,6 +221,7 @@ func (v *view) flags() byte {
 func (v *view) availableShards() *roaring.Bitmap {
 	v.mu.RLock()
 	defer v.mu.RUnlock()
+	return v._availableShards
 
 	b := roaring.NewBitmap()
 	for shard := range v.fragments {
@@ -343,6 +347,7 @@ func (v *view) deleteFragment(shard uint64) error {
 	}
 
 	delete(v.fragments, shard)
+	v._availableShards.Remove(shard)
 
 	return nil
 }
