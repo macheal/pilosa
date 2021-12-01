@@ -820,6 +820,7 @@ func (f *Field) view(name string) *view {
 	defer f.mu.RUnlock()
 	if f.ticker != nil {
 		if f.isOpen {
+			f.logger.Debugf("---debug---Field.view().ticker restart.field:%s.", f.Name())
 			f.ticker.Reset(f.ttl)
 		} else {
 			_, err, _ := f.group.Do("view", func() (interface{}, error) {
@@ -873,6 +874,7 @@ func (f *Field) addView(name string, v *view) {
 func (f *Field) viewMap() map[string]*view {
 	if f.ticker != nil {
 		if f.isOpen {
+			f.logger.Debugf("---debug---Field.view().ticker restart.field:%s.", f.Name())
 			f.ticker.Reset(f.ttl)
 		} else {
 			_, err, _ := f.group.Do("view", func() (interface{}, error) {
