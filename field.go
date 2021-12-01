@@ -265,9 +265,13 @@ func (f *Field) AvailableShards() *roaring.Bitmap {
 	defer f.mu.RUnlock()
 
 	b := f.remoteAvailableShards.Clone()
-	for _, view := range f.views() {
-		b = b.Union(view.availableShards())
-	}
+	//for _, view := range f.views() {
+	//	b = b.Union(view.availableShards())
+	//}
+	f._viewMap.Range(func(key, value interface{}) bool {
+		b = b.Union(value.(*view).availableShards())
+		return true
+	})
 	return b
 }
 
