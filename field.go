@@ -241,8 +241,8 @@ func newField(path, index, name string, opts FieldOption) (*Field, error) {
 	}
 	f.newViews()
 	f.closing = make(chan struct{})
-	f.ttl = 10 * time.Second
-	//f.ttl = 30*time.Minute
+	//f.ttl = 10 * time.Second
+	f.ttl = 15 * time.Minute
 
 	return f, nil
 }
@@ -263,6 +263,7 @@ func (f *Field) RowAttrStore() AttrStore { return f.rowAttrStore }
 func (f *Field) AvailableShards() *roaring.Bitmap {
 	f.mu.RLock()
 	defer f.mu.RUnlock()
+	f.logger.Debugf("---debug. Field.AvailableShards. open:%v,name:%s", f.isOpen, f.Name())
 
 	b := f.remoteAvailableShards.Clone()
 	//for _, view := range f.views() {
