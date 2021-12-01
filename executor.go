@@ -3195,7 +3195,7 @@ func (gbi *groupByIterator) nextAtIdx(i int) {
 			gbi.done = true
 			return
 		}
-		fmt.Println(gbi.rowIters[i].f.field, nr, rowID, wrapped)
+		//fmt.Println(gbi.rowIters[i].f.field, nr, rowID, wrapped)
 		if wrapped && i != 0 {
 			gbi.nextAtIdx(i - 1)
 		}
