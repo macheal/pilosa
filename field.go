@@ -69,7 +69,7 @@ type Field struct {
 	index string
 	name  string
 
-	_viewMap map[string]*view
+	_viewMap sync.Map
 
 	ticker  *time.Ticker
 	ttl     time.Duration
@@ -241,8 +241,8 @@ func newField(path, index, name string, opts FieldOption) (*Field, error) {
 	}
 	f.newViews()
 	f.closing = make(chan struct{})
-	f.ttl = 10 * time.Second
-	//f.ttl = 30*time.Minute
+	//f.ttl = 10 * time.Second
+	f.ttl = 15 * time.Minute
 
 	return f, nil
 }
@@ -263,11 +263,16 @@ func (f *Field) RowAttrStore() AttrStore { return f.rowAttrStore }
 func (f *Field) AvailableShards() *roaring.Bitmap {
 	f.mu.RLock()
 	defer f.mu.RUnlock()
+	f.logger.Debugf("---debug. Field.AvailableShards. open:%v,name:%s", f.isOpen, f.Name())
 
 	b := f.remoteAvailableShards.Clone()
-	for _, view := range f._viewMap {
-		b = b.Union(view.availableShards())
-	}
+	//for _, view := range f.views() {
+	//	b = b.Union(view.availableShards())
+	//}
+	f._viewMap.Range(func(key, value interface{}) bool {
+		b = b.Union(value.(*view).availableShards())
+		return true
+	})
 	return b
 }
 
@@ -815,6 +820,7 @@ func (f *Field) view(name string) *view {
 	defer f.mu.RUnlock()
 	if f.ticker != nil {
 		if f.isOpen {
+			f.logger.Debugf("---debug---Field.view().ticker restart.field:%s.", f.Name())
 			f.ticker.Reset(f.ttl)
 		} else {
 			_, err, _ := f.group.Do("view", func() (interface{}, error) {
@@ -834,7 +840,13 @@ func (f *Field) view(name string) *view {
 	return f.unprotectedView(name)
 }
 
-func (f *Field) unprotectedView(name string) *view { return f._viewMap[name] }
+func (f *Field) unprotectedView(name string) *view {
+	data, found := f._viewMap.Load(name)
+	if !found {
+		return nil
+	}
+	return data.(*view)
+}
 func (f *Field) OnEvicted() {
 	f.mu.RLock()
 	defer f.mu.RUnlock()
@@ -842,7 +854,7 @@ func (f *Field) OnEvicted() {
 		return
 	}
 	f.logger.Debugf("---debug---field:%s.views closing.", f.Name())
-	for _, view := range f._viewMap {
+	for _, view := range f.views() {
 		err := view.close()
 		if err != nil {
 			panic(err)
@@ -852,16 +864,17 @@ func (f *Field) OnEvicted() {
 	f.logger.Debugf("---debug---field:%s.views closed.", f.Name())
 }
 func (f *Field) newViews() {
-	f._viewMap = make(map[string]*view)
+	f._viewMap = sync.Map{} // make(map[string]*view)
 }
 func (f *Field) addView(name string, v *view) {
 	f.isOpen = true
 	f.logger.Debugf("---debug---field:%s .view:%s .loaded", f.Name(), name)
-	f._viewMap[name] = v
+	f._viewMap.Store(name, v) //[name] = v
 }
 func (f *Field) viewMap() map[string]*view {
 	if f.ticker != nil {
 		if f.isOpen {
+			f.logger.Debugf("---debug---Field.view().ticker restart.field:%s.", f.Name())
 			f.ticker.Reset(f.ttl)
 		} else {
 			_, err, _ := f.group.Do("view", func() (interface{}, error) {
@@ -878,7 +891,12 @@ func (f *Field) viewMap() map[string]*view {
 			}
 		}
 	}
-	return f._viewMap
+	m := make(map[string]*view)
+	f._viewMap.Range(func(key, value interface{}) bool {
+		m[key.(string)] = value.(*view)
+		return true
+	})
+	return m
 }
 
 // views returns a list of all views in the field.
@@ -970,7 +988,8 @@ func (f *Field) deleteView(name string) error {
 		return errors.Wrap(err, "deleting directory")
 	}
 
-	delete(f._viewMap, name)
+	f._viewMap.Delete(name)
+	//delete(f._viewMap, name)
 
 	return nil
 }
