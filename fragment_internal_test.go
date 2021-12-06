@@ -25,6 +25,7 @@ import (
 	"math/rand"
 	"os"
 	"reflect"
+	"runtime"
 	"sort"
 	"sync/atomic"
 	"testing"
@@ -76,6 +77,23 @@ func TestFragment_SetBit(t *testing.T) {
 	} else if n := f.row(121).Count(); n != 1 {
 		t.Fatalf("unexpected count (reopen): %d", n)
 	}
+	var m runtime.MemStats
+	fmt.Printf("%+v\n", f)
+	runtime.ReadMemStats(&m)
+	fmt.Printf("%d,%d,%d,%d,%d,%d\n", m.HeapSys, 0, m.HeapAlloc, m.HeapIdle, m.HeapReleased, 0)
+	f.Close()
+	fmt.Printf("%+v\n", f)
+	runtime.ReadMemStats(&m)
+	fmt.Printf("%d,%d,%d,%d,%d,%d\n", m.HeapSys, 0, m.HeapAlloc, m.HeapIdle, m.HeapReleased, 0)
+	runtime.GC()
+	runtime.ReadMemStats(&m)
+	fmt.Printf("%d,%d,%d,%d,%d,%d\n", m.HeapSys, 0, m.HeapAlloc, m.HeapIdle, m.HeapReleased, 0)
+	fmt.Printf("%+v\n", f)
+	f.Open()
+	bks := f.Blocks()
+	fmt.Println(bks)
+	fmt.Printf("%+v\n", f)
+
 }
 
 // Ensure a fragment can clear a set bit.
